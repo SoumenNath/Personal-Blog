@@ -1,103 +1,111 @@
-import Image from "next/image";
+"use client";
+
+import { useState, useEffect } from "react";
+
+type Post = {
+  id: number;
+  title: string;
+  content: string;
+  imageUrl?: string | null; // stores S3 key in DB
+  createdAt: string;
+};
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [urls, setUrls] = useState<Record<number, string>>({}); // postId -> signed URL
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+
+    let imageKey: string | null = null;
+    let previewUrl: string | null = null;
+
+    if (file) {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      const data = await res.json();
+      imageKey = data.key;
+      previewUrl = data.url;
+    }
+
+    const res = await fetch("/api/posts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title, content, imageKey }),
+    });
+
+    const newPost: Post = await res.json();
+    setPosts([newPost, ...posts]);
+    if (previewUrl) {
+      setUrls((prev) => ({ ...prev, [newPost.id]: previewUrl }));
+    }
+    setTitle("");
+    setContent("");
+    setFile(null);
+  }
+
+  async function fetchPosts() {
+    const res = await fetch("/api/posts");
+    const posts: Post[] = await res.json();
+
+    // Get signed URLs for posts with images
+    for (const post of posts) {
+      if (post.imageUrl) {
+        const res = await fetch("/api/images", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ key: post.imageUrl }),
+        });
+        const data = await res.json();
+        setUrls((prev) => ({ ...prev, [post.id]: data.url }));
+      }
+    }
+
+    setPosts(posts);
+  }
+
+  useEffect(() => {
+    fetchPosts();
+  }, []);
+
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-4">Blog App (Private S3)</h1>
+
+      <form onSubmit={handleSubmit} className="space-y-2">
+        <input
+          className="border p-2 w-full"
+          placeholder="Title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+        />
+        <textarea
+          className="border p-2 w-full"
+          placeholder="Content"
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+        />
+        <input type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+        <button type="submit" className="bg-blue-500 text-white px-4 py-2">
+          Create Post
+        </button>
+      </form>
+
+      <div className="mt-6 space-y-4">
+        {posts.map((post) => (
+          <div key={post.id} className="border p-4 rounded">
+            <h2 className="text-xl font-semibold">{post.title}</h2>
+            <p>{post.content}</p>
+            {post.imageUrl && urls[post.id] && (
+              <img src={urls[post.id]} alt="" className="mt-2 w-64" />
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
