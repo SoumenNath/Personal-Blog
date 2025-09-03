@@ -7,10 +7,18 @@ generator client {
   provider = "prisma-client-js"
 }
 
+enum Topic {
+  Football
+  Kpop
+  Technology
+  Others
+}
+
 model Post {
   id        Int      @id @default(autoincrement())
   title     String
   content   String
-  imageUrl  String?   // store S3 image URL
+  imageKey  String?
+  topic     Topic    
   createdAt DateTime @default(now())
 }
