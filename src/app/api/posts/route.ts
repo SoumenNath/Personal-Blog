@@ -27,14 +27,14 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { title, content, topic } = body;
+    const { title, content, topic, imageKey} = body;
 
     if (!Object.values(Topic).includes(topic as Topic)) {
       return NextResponse.json({ error: "Invalid topic" }, { status: 400 });
     }
 
     const post = await prisma.post.create({
-      data: { title, content, topic },
+      data: { title, content, topic, imageKey: imageKey ?? null, },
     });
 
     return NextResponse.json(post);
