@@ -1,19 +1,45 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import prisma from "@/lib/prisma";
+import { Topic } from "@prisma/client";
 
-const prisma = new PrismaClient();
+export async function GET(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const topicParam = searchParams.get("topic");
 
-export async function POST(req: Request) {
-  const { title, content, imageKey } = await req.json();
-  const post = await prisma.post.create({
-    data: { title, content, imageUrl: imageKey }, // storing S3 key instead of signed URL
-  });
-  return NextResponse.json(post);
+    let whereClause = undefined;
+    if (topicParam && Object.values(Topic).includes(topicParam as Topic)) {
+      whereClause = { topic: topicParam as Topic };
+    }
+
+    const posts = await prisma.post.findMany({
+      where: whereClause,
+      orderBy: { createdAt: "desc" },
+    });
+
+    return NextResponse.json(posts);
+  } catch (error) {
+    console.error("GET /api/posts failed:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
 }
 
-export async function GET() {
-  const posts = await prisma.post.findMany({
-    orderBy: { createdAt: "desc" },
-  });
-  return NextResponse.json(posts);
+export async function POST(req: Request) {
+  try {
+    const body = await req.json();
+    const { title, content, topic, imageKey} = body;
+
+    if (!Object.values(Topic).includes(topic as Topic)) {
+      return NextResponse.json({ error: "Invalid topic" }, { status: 400 });
+    }
+
+    const post = await prisma.post.create({
+      data: { title, content, topic, imageKey: imageKey ?? null, },
+    });
+
+    return NextResponse.json(post);
+  } catch (error) {
+    console.error("POST /api/posts failed:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
 }
