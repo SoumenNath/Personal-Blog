@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import PostImage from "@/app/components/PostImage";
+import DeletePostButton from "@/app/components/DeletePostButton";
 
 interface Post {
   id: number;
@@ -27,15 +28,25 @@ export default async function PostPage({ params }: { params: { id: string } }) {
       <h1 className="text-3xl font-bold mb-2">{post.title}</h1>
       <p className="text-gray-500 mb-4">Topic: {post.topic}</p>
 
-      {post.imageKey && <PostImage imageKey={post.imageKey} alt={post.title} />}
+      {post.imageKey && (
+        <PostImage imageKey={post.imageKey} alt={post.title} />
+      )}
 
-      <article className="whitespace-pre-line text-lg">{post.content}</article>
-      <a
-      href={`/post/${post.id}/edit`}
-      className="text-blue-600 hover:underline"
-      >
-      Edit Post
-      </a>
+      <article className="whitespace-pre-line text-lg mb-6">
+        {post.content}
+      </article>
+
+      <div className="flex gap-4">
+        <a
+          href={`/post/${post.id}/edit`}
+          className="text-blue-600 hover:underline"
+        >
+          Edit Post
+          
+        </a>
+
+        <DeletePostButton postId={post.id} />
+      </div>
     </div>
   );
 }
