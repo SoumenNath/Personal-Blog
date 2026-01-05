@@ -17,3 +17,33 @@ export async function GET(req: Request, { params }: Params) {
 
   return NextResponse.json(post);
 }
+
+export async function PUT(
+  req: Request,
+  ctx: { params: { id: string } }
+) {
+  try {
+    const { id } = await ctx.params;
+    const body = await req.json();
+
+    const { title, content, topic, imageKey } = body;
+
+    const post = await prisma.post.update({
+      where: { id: Number(id) },
+      data: {
+        title,
+        content,
+        topic,
+        imageKey,
+      },
+    });
+
+    return NextResponse.json(post);
+  } catch (err) {
+    console.error("Update post error:", err);
+    return NextResponse.json(
+      { error: "Failed to update post" },
+      { status: 500 }
+    );
+  }
+}

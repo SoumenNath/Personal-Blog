@@ -30,6 +30,12 @@ export default async function PostPage({ params }: { params: { id: string } }) {
       {post.imageKey && <PostImage imageKey={post.imageKey} alt={post.title} />}
 
       <article className="whitespace-pre-line text-lg">{post.content}</article>
+      <a
+      href={`/post/${post.id}/edit`}
+      className="text-blue-600 hover:underline"
+      >
+      Edit Post
+      </a>
     </div>
   );
 }
